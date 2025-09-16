@@ -5,35 +5,45 @@ from src.research_agent.agent import collect, score_and_save
 
 def parse_args():
     p = argparse.ArgumentParser(
-        description="Scholarly agent: arXiv / Crossref / PubMed / HAL / DBLP (+optional OpenAlex, DOAJ, CORE, Scopus/IEEE), per-paper JSON + BibTeX/CSL."
+        description="Search multiple scholarly sources (arXiv, PubMed, HAL, DBLP, Crossref, OpenAlex) and export per-paper JSON files."
     )
     p.add_argument("topic", help="Research topic / query seed (in quotes)")
     p.add_argument("--years", default=None, help="YYYY or YYYY-YYYY (inclusive)")
     p.add_argument("--per-source", type=int, default=50, help="Max results per source")
     p.add_argument("--outdir", default="results", help="Output directory")
 
-    # Scoring (LLM is now OPT-IN; pass a model name to enable)
-    p.add_argument("--ollama-model", default="", help="Local LLM for re-ranking (e.g., 'llama3.1:8b'). Empty disables.")
-    p.add_argument("--min-score", type=float, default=0.0, help="Drop papers below this score [0..1]")
-    p.add_argument("--max-papers", type=int, default=None, help="Cap results after scoring")
+    # Relevance scoring
+    p.add_argument("--ollama-model", default=None, help="Enable LLM re-ranking (e.g., 'llama3.1:8b')")
+    p.add_argument("--min-score", type=float, default=0.0, help="Filter papers below this relevance score [0..1]")
+    p.add_argument("--max-papers", type=int, default=None, help="Cap the number of saved papers after filtering")
 
-    # Sources (free/open; OpenAlex optional; DOAJ/CORE default OFF for now)
+    # Source toggles
     p.add_argument("--no-openalex", action="store_true", help="Disable OpenAlex")
     p.add_argument("--no-arxiv", action="store_true", help="Disable arXiv")
-    p.add_argument("--crossref", action="store_true", help="Include Crossref")
+    p.add_argument("--crossref", action="store_true", help="Enable Crossref")
     p.add_argument("--no-pubmed", action="store_true", help="Disable PubMed")
     p.add_argument("--no-hal", action="store_true", help="Disable HAL")
     p.add_argument("--no-dblp", action="store_true", help="Disable DBLP")
     p.add_argument("--use-doaj", action="store_true", help="Enable DOAJ (experimental)")
     p.add_argument("--use-core", action="store_true", help="Enable CORE (experimental)")
+    p.add_argument("--use-scopus", action="store_true", help="Enable Scopus (requires API key)")
+    p.add_argument("--use-ieee", action="store_true", help="Enable IEEE Xplore (requires API key)")
 
-    # Paid APIs (opt-in; require env keys)
-    p.add_argument("--use-scopus", action="store_true", help="Enable Scopus (requires SCOPUS_API_KEY)")
-    p.add_argument("--use-ieee", action="store_true", help="Enable IEEE Xplore (requires IEEE_API_KEY)")
+    # Output format flags
+    p.add_argument(
+        "--no-bibtex",
+        action="store_true",
+        help="Disable BibTeX export (default: enabled)",
+    )
+    p.add_argument(
+        "--no-csl",
+        action="store_true",
+        help="Disable CSL-JSON export (default: enabled)",
+    )
 
-    # UX
-    p.add_argument("--verbose", action="store_true", help="Print progress during collection and saving")
-    p.add_argument("--incremental", action="store_true", help="Write files as we go (draft index)")
+    # Misc
+    p.add_argument("--verbose", action="store_true", help="Verbose logging")
+    p.add_argument("--incremental", action="store_true", help="Incrementally save as results come in")
 
     return p.parse_args()
 
@@ -70,14 +80,15 @@ def main():
         topic=args.topic,
         items=items,
         outdir=args.outdir,
-        ollama_model=(args.ollama_model or None),
+        ollama_model=args.ollama_model,
         min_score=args.min_score,
         max_papers=args.max_papers,
-        verbose=args.verbose,
+        save_bibtex=not args.no_bibtex,
+        save_csl=not args.no_csl,
         incremental=args.incremental,
-        export_bibtex=True,
-        export_csl=True,
+        verbose=args.verbose,
     )
+
     print(f"[ok] Saved {saved} item(s) -> {outbase}")
     return 0
 

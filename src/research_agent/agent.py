@@ -177,10 +177,19 @@ def collect(topic: str, years: str | None, per_source: int,
     if verbose: print(f"[info] Unique after dedup: {len(unique)}", flush=True)
     return unique
 
-def score_and_save(topic: str, items: List[Dict], outdir: str, ollama_model: str | None,
-                   min_score: float = 0.0, max_papers: int | None = None,
-                   verbose: bool = False, incremental: bool = False,
-                   export_bibtex: bool = False, export_csl: bool = False) -> Tuple[str, int]:
+def score_and_save(
+                topic: str,
+                items: List[Dict],
+                outdir: str,
+                ollama_model: str | None,
+                min_score: float = 0.0,
+                max_papers: int | None = None,
+                save_bibtex: bool = True,
+                save_csl: bool = True,
+                incremental: bool = False,
+                verbose: bool = False,
+            ) -> tuple[str, int]:
+
     from .exporters import write_bibtex, write_csl_json
 
     topic_slug = slugify(topic)
@@ -260,11 +269,11 @@ def score_and_save(topic: str, items: List[Dict], outdir: str, ollama_model: str
                 "url_pdf": it.get("url_pdf",""),
             }, ensure_ascii=False) + "\n")
 
-    if export_bibtex:
-        write_bibtex(os.path.join(base, "export.bib"), filtered)
-        if verbose: print("[info] Wrote BibTeX: export.bib", flush=True)
-    if export_csl:
-        write_csl_json(os.path.join(base, "export.csl.json"), filtered)
-        if verbose: print("[info] Wrote CSL-JSON: export.csl.json", flush=True)
+    # Export formats
+    from .exporters import write_bibtex, write_csl_json
+    if save_bibtex:
+        write_bibtex(os.path.join(base, "export.bib"), scored)
+    if save_csl:
+        write_csl_json(os.path.join(base, "export.csl.json"), scored)
 
     return base, len(filtered)
