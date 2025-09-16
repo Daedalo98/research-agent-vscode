@@ -1,0 +1,23 @@
+# Python cache/bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual envs
+.venv/
+env/
+venv/
+
+# Packaging/IDE
+build/
+dist/
+*.egg-info/
+.cache/
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
+
+# Outputs
+results/
