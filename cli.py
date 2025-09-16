@@ -4,24 +4,37 @@ import argparse
 from src.research_agent.agent import collect, score_and_save
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Search OpenAlex + arXiv (optional Crossref) and export per-paper JSON.")
+    p = argparse.ArgumentParser(
+        description="Scholarly agent: arXiv / Crossref / PubMed / HAL / DBLP (+optional OpenAlex, DOAJ, CORE, Scopus/IEEE), per-paper JSON + BibTeX/CSL."
+    )
     p.add_argument("topic", help="Research topic / query seed (in quotes)")
     p.add_argument("--years", default=None, help="YYYY or YYYY-YYYY (inclusive)")
     p.add_argument("--per-source", type=int, default=50, help="Max results per source")
     p.add_argument("--outdir", default="results", help="Output directory")
 
-    # Scoring (local model optional)
-    p.add_argument("--ollama-model", default="llama3.1:8b", help="Local LLM for re-ranking (e.g., llama3.1:8b)")
+    # Scoring (LLM is now OPT-IN; pass a model name to enable)
+    p.add_argument("--ollama-model", default="", help="Local LLM for re-ranking (e.g., 'llama3.1:8b'). Empty disables.")
     p.add_argument("--min-score", type=float, default=0.0, help="Drop papers below this score [0..1]")
     p.add_argument("--max-papers", type=int, default=None, help="Cap results after scoring")
 
-    # Sources
+    # Sources (free/open; OpenAlex optional; DOAJ/CORE default OFF for now)
     p.add_argument("--no-openalex", action="store_true", help="Disable OpenAlex")
     p.add_argument("--no-arxiv", action="store_true", help="Disable arXiv")
-    p.add_argument("--crossref", action="store_true", help="Also search Crossref (for DOI coverage)")
+    p.add_argument("--crossref", action="store_true", help="Include Crossref")
+    p.add_argument("--no-pubmed", action="store_true", help="Disable PubMed")
+    p.add_argument("--no-hal", action="store_true", help="Disable HAL")
+    p.add_argument("--no-dblp", action="store_true", help="Disable DBLP")
+    p.add_argument("--use-doaj", action="store_true", help="Enable DOAJ (experimental)")
+    p.add_argument("--use-core", action="store_true", help="Enable CORE (experimental)")
 
-    # NEW: verbosity
+    # Paid APIs (opt-in; require env keys)
+    p.add_argument("--use-scopus", action="store_true", help="Enable Scopus (requires SCOPUS_API_KEY)")
+    p.add_argument("--use-ieee", action="store_true", help="Enable IEEE Xplore (requires IEEE_API_KEY)")
+
+    # UX
     p.add_argument("--verbose", action="store_true", help="Print progress during collection and saving")
+    p.add_argument("--incremental", action="store_true", help="Write files as we go (draft index)")
+
     return p.parse_args()
 
 def main():
@@ -37,7 +50,14 @@ def main():
         use_openalex=not args.no_openalex,
         use_arxiv=not args.no_arxiv,
         use_crossref=args.crossref,
-        verbose=args.verbose,              # NEW
+        use_pubmed=not args.no_pubmed,
+        use_hal=not args.no_hal,
+        use_dblp=not args.no_dblp,
+        use_doaj=args.use_doaj,      # off unless passed
+        use_core=args.use_core,      # off unless passed
+        use_scopus=args.use_scopus,
+        use_ieee=args.use_ieee,
+        verbose=args.verbose,
     )
     if not items:
         print("[info] No results found.")
@@ -50,11 +70,13 @@ def main():
         topic=args.topic,
         items=items,
         outdir=args.outdir,
-        ollama_model=args.ollama_model,
+        ollama_model=(args.ollama_model or None),
         min_score=args.min_score,
         max_papers=args.max_papers,
-        verbose=args.verbose,              # NEW
-        incremental=True,                  # NEW: write as we go
+        verbose=args.verbose,
+        incremental=args.incremental,
+        export_bibtex=True,
+        export_csl=True,
     )
     print(f"[ok] Saved {saved} item(s) -> {outbase}")
     return 0
